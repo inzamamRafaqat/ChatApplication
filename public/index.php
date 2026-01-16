@@ -18,6 +18,7 @@
                 <div class="flex items-center space-x-3">
                     <img id="userAvatar" src="" alt="Avatar" class="w-10 h-10 rounded-full">
                     <div class="flex-1">
+                        
                         <h2 class="font-bold" id="username"></h2>
                         <p class="text-xs text-gray-500">Online</p>
                     </div>
