@@ -18,7 +18,6 @@
                 <div class="flex items-center space-x-3">
                     <img id="userAvatar" src="" alt="Avatar" class="w-10 h-10 rounded-full">
                     <div class="flex-1">
-                        
                         <h2 class="font-bold" id="username"></h2>
                         <p class="text-xs text-gray-500">Online</p>
                     </div>
@@ -149,7 +148,7 @@
     </div>
 
     <script>
-        const API_URL = 'http://localhost/ChatApplication/api';
+        const API_URL = 'http://localhost/ChatApplication/Backend/api';
         let token = localStorage.getItem('token');
         let user = JSON.parse(localStorage.getItem('user') || '{}');
         let currentChannel = null;
@@ -230,26 +229,13 @@
                 });
                 const data = await response.json();
                 
-                console.log('Messages response:', data); // Debug log
-                
                 if (data.success) {
                     const messagesArea = document.getElementById('messagesArea');
                     messagesArea.innerHTML = data.messages.map(msg => {
-                        console.log('Message:', msg); // Debug each message
-                        
-                        // Check if file_url exists and is not null/empty
-                        const hasFile = msg.file_url && msg.file_url !== 'null' && msg.file_url.trim() !== '';
-                        
-                        let fileExt = '';
-                        let isImage = false;
-                        let isDocument = false;
-                        
-                        if (hasFile) {
-                            console.log('File URL:', msg.file_url); // Debug file URL
-                            fileExt = msg.file_url.split('.').pop().toLowerCase().split('?')[0];
-                            isImage = ['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(fileExt);
-                            isDocument = ['pdf', 'doc', 'docx', 'txt', 'xls', 'xlsx'].includes(fileExt);
-                        }
+                        const hasFile = msg.file_url && msg.file_url !== 'null';
+                        const fileExt = hasFile ? msg.file_url.split('.').pop().toLowerCase() : '';
+                        const isImage = hasFile && ['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(fileExt);
+                        const isDocument = hasFile && ['pdf', 'doc', 'docx', 'txt', 'xls', 'xlsx'].includes(fileExt);
                         
                         let fileContent = '';
                         if (hasFile) {
@@ -257,20 +243,19 @@
                                 // Show image preview
                                 fileContent = `
                                     <div class="mb-2 rounded overflow-hidden">
-                                        <img src="${msg.file_url}" 
-                                             alt="Image" 
-                                             class="max-w-full max-h-64 rounded cursor-pointer hover:opacity-90"
-                                             onclick="openImageViewer('${msg.file_url}'); event.preventDefault();"
-                                             onerror="console.error('Image load error:', this.src); this.style.display='none'; this.parentElement.innerHTML='<div class=\'text-red-500\'>❌ Image failed to load</div>';">
+                                        <a href="${msg.file_url}" target="_blank">
+                                            <img src="${msg.file_url}" alt="Image" 
+                                                 class="max-w-full max-h-64 rounded cursor-pointer hover:opacity-90"
+                                                 onclick="openImageViewer('${msg.file_url}'); event.preventDefault();">
+                                        </a>
                                     </div>
                                 `;
                             } else if (isDocument) {
                                 // Show document download button
-                                const fileName = msg.file_url.split('/').pop().split('?')[0];
+                                const fileName = msg.file_url.split('/').pop();
                                 const fileIcon = fileExt === 'pdf' ? '📄' : fileExt === 'doc' || fileExt === 'docx' ? '📝' : '📎';
                                 fileContent = `
-                                    <a href="${msg.file_url}" download target="_blank" 
-                                       class="block mb-2 p-3 bg-white bg-opacity-20 rounded hover:bg-opacity-30 transition">
+                                    <a href="${msg.file_url}" download class="block mb-2 p-3 bg-white bg-opacity-20 rounded hover:bg-opacity-30 transition">
                                         <div class="flex items-center space-x-2">
                                             <span class="text-2xl">${fileIcon}</span>
                                             <div class="flex-1 min-w-0">
@@ -287,7 +272,7 @@
                         return `
                             <div class="flex ${msg.user_id === user.id ? 'justify-end' : 'justify-start'}">
                                 <div class="max-w-md ${msg.user_id === user.id ? 'bg-blue-500 text-white' : 'bg-white'} rounded-lg p-3 shadow">
-                                    <div class="font-semibold text-sm mb-1 ${msg.user_id === user.id ? 'text-blue-100' : 'text-gray-700'}">${escapeHtml(msg.username)}</div>
+                                    <div class="font-semibold text-sm mb-1 ${msg.user_id === user.id ? 'text-blue-100' : 'text-gray-700'}">${msg.username}</div>
                                     ${fileContent}
                                     ${msg.content && msg.content !== '📎 File attached' ? `<div class="break-words">${escapeHtml(msg.content)}</div>` : ''}
                                     <div class="text-xs opacity-75 mt-1 text-right">${new Date(msg.created_at).toLocaleTimeString()}</div>
@@ -326,8 +311,6 @@
                     const formData = new FormData();
                     formData.append('file', selectedFile);
                     
-                    console.log('Uploading file...'); // Debug
-                    
                     const uploadResponse = await fetch(`${API_URL}/upload.php`, {
                         method: 'POST',
                         headers: {
@@ -337,37 +320,26 @@
                     });
                     
                     const uploadData = await uploadResponse.json();
-                    console.log('Upload response:', uploadData); // Debug
-                    
                     if (uploadData.success) {
                         fileUrl = uploadData.file_url;
-                        console.log('File uploaded successfully:', fileUrl); // Debug
-                    } else {
-                        alert('Failed to upload file: ' + uploadData.message);
-                        return;
                     }
                 }
                 
                 // Send message
-                const messagePayload = {
-                    channel_id: currentChannel.id,
-                    content: content || '📎 File attached',
-                    file_url: fileUrl
-                };
-                
-                console.log('Sending message:', messagePayload); // Debug
-                
                 const response = await fetch(`${API_URL}/messages.php`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                         'Authorization': `Bearer ${token}`
                     },
-                    body: JSON.stringify(messagePayload)
+                    body: JSON.stringify({
+                        channel_id: currentChannel.id,
+                        content: content || '📎 File attached',
+                        file_url: fileUrl
+                    })
                 });
                 
                 const data = await response.json();
-                console.log('Message response:', data); // Debug
                 
                 if (data.success) {
                     document.getElementById('messageInput').value = '';
@@ -541,7 +513,7 @@
             document.getElementById('viewerImage').src = imageUrl;
             document.getElementById('downloadImageBtn').href = imageUrl;
             document.getElementById('openImageBtn').href = imageUrl;
-            document.body.style.overflow = 'hidden';
+            document.body.style.overflow = 'hidden'; // Prevent background scrolling
         }
 
         function closeImageViewer() {
@@ -557,9 +529,21 @@
         });
 
         // Auto-refresh messages every 3 seconds
+        let lastMessageCount = 0;
         setInterval(() => {
             if (currentChannel) {
-                loadMessages(currentChannel.id);
+                // Only reload if there might be new messages
+                fetch(`${API_URL}/messages.php?channel_id=${currentChannel.id}`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success && data.messages.length !== lastMessageCount) {
+                        lastMessageCount = data.messages.length;
+                        loadMessages(currentChannel.id);
+                    }
+                })
+                .catch(err => console.error('Auto-refresh error:', err));
             }
         }, 3000);
 

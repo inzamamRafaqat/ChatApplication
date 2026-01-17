@@ -110,7 +110,7 @@
 
     <script>
         const BASE_PATH = window.location.pathname.split('/public')[0];
-        const API_URL = BASE_PATH + 'http://localhost/ChatApplication/api';
+        const API_URL = BASE_PATH + 'http://localhost/ChatApplication/Backend/api';
         
         let token = localStorage.getItem('token');
         let user = JSON.parse(localStorage.getItem('user') || '{}');

@@ -14,8 +14,9 @@ require_once $projectRoot . '/middleware/Auth.php';
 
 Auth::verify();
 
-// Create uploads directory if not exists
+// Upload to Backend/public/uploads folder
 $uploadDir = $projectRoot . '/public/uploads/';
+
 if (!file_exists($uploadDir)) {
     mkdir($uploadDir, 0777, true);
 }
@@ -35,20 +36,18 @@ try {
         $filepath = $uploadDir . $filename;
         
         if (move_uploaded_file($file['tmp_name'], $filepath)) {
-            // IMPORTANT: Determine the base URL dynamically
+            // Return correct URL path
             $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
             $host = $_SERVER['HTTP_HOST'];
-            $baseUrl = $protocol . '://' . $host;
             
-            // Return complete web-accessible URL
             echo json_encode([
                 'success' => true,
-                'file_url' => $baseUrl . '/ChatApplication/public/uploads/' . $filename,
+                'file_url' => $protocol . '://' . $host . '/ChatApplication/Backend/public/uploads/' . $filename,
                 'file_type' => in_array($extension, ['jpg','jpeg','png','gif','webp']) ? 'image' : 'document',
                 'filename' => $filename
             ]);
         } else {
-            echo json_encode(['success' => false, 'message' => 'Failed to upload file']);
+            echo json_encode(['success' => false, 'message' => 'Failed to upload file. Check directory permissions.']);
         }
     } else {
         echo json_encode(['success' => false, 'message' => 'No file provided']);
