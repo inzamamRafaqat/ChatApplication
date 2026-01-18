@@ -72,5 +72,101 @@ class AuthController {
             ]
         ];
     }
+
+    // Search users by username or email
+    public function searchUsers($query, $currentUserId) {
+        try {
+            $users = $this->userModel->searchUsers($query, $currentUserId);
+            
+            // Format users for response
+            $formattedUsers = [];
+            foreach ($users as $user) {
+                $formattedUsers[] = [
+                    'id' => (string)$user->_id,
+                    'username' => $user->username,
+                    'email' => $user->email,
+                    'avatar' => isset($user->avatar) ? $user->avatar : null,
+                    'created_at' => isset($user->created_at) ? $user->created_at : null
+                ];
+            }
+
+            return [
+                'success' => true,
+                'users' => $formattedUsers,
+                'count' => count($formattedUsers)
+            ];
+        } catch (Exception $e) {
+            return [
+                'success' => false,
+                'message' => 'Error: ' . $e->getMessage()
+            ];
+        }
+    }
+
+    // Get user profile by ID
+    public function getUserProfile($userId) {
+        try {
+            $user = $this->userModel->findById($userId);
+            
+            if (!$user) {
+                return [
+                    'success' => false,
+                    'message' => 'User not found'
+                ];
+            }
+
+            return [
+                'success' => true,
+                'user' => [
+                    'id' => (string)$user->_id,
+                    'username' => $user->username,
+                    'email' => $user->email,
+                    'avatar' => isset($user->avatar) ? $user->avatar : null,
+                    'created_at' => isset($user->created_at) ? $user->created_at : null
+                ]
+            ];
+        } catch (Exception $e) {
+            return [
+                'success' => false,
+                'message' => 'Error: ' . $e->getMessage()
+            ];
+        }
+    }
+
+    // List all users except current user
+    public function listUsers($currentUserId) {
+        try {
+            // Use existing getAllUsers method
+            $users = $this->userModel->getAllUsers();
+            
+            // Format users for response and exclude current user
+            $formattedUsers = [];
+            foreach ($users as $user) {
+                // Skip current user
+                if ((string)$user->_id === $currentUserId) {
+                    continue;
+                }
+                
+                $formattedUsers[] = [
+                    'id' => (string)$user->_id,
+                    'username' => $user->username,
+                    'email' => $user->email,
+                    'avatar' => isset($user->avatar) ? $user->avatar : null,
+                    'created_at' => isset($user->created_at) ? $user->created_at : null
+                ];
+            }
+
+            return [
+                'success' => true,
+                'users' => $formattedUsers,
+                'count' => count($formattedUsers)
+            ];
+        } catch (Exception $e) {
+            return [
+                'success' => false,
+                'message' => 'Error: ' . $e->getMessage()
+            ];
+        }
+    }
 }
 ?>

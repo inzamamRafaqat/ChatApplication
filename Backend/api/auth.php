@@ -51,6 +51,56 @@ try {
             echo json_encode($result);
             break;
 
+        case 'search':
+            if ($method !== 'GET') {
+                http_response_code(405);
+                echo json_encode(['success' => false, 'message' => 'Method not allowed']);
+                exit;
+            }
+            
+            // Verify authentication
+            $currentUser = Auth::verify();
+            
+            $query = isset($_GET['q']) ? trim($_GET['q']) : '';
+            
+            if (empty($query)) {
+                echo json_encode(['success' => false, 'message' => 'Search query is required']);
+                exit;
+            }
+            
+            $result = $controller->searchUsers($query, $currentUser['user_id']);
+            echo json_encode($result);
+            break;
+
+        case 'profile':
+            if ($method !== 'GET') {
+                http_response_code(405);
+                echo json_encode(['success' => false, 'message' => 'Method not allowed']);
+                exit;
+            }
+            
+            // Verify authentication
+            $currentUser = Auth::verify();
+            
+            $userId = isset($_GET['id']) ? $_GET['id'] : $currentUser['user_id'];
+            $result = $controller->getUserProfile($userId);
+            echo json_encode($result);
+            break;
+
+        case 'list':
+            if ($method !== 'GET') {
+                http_response_code(405);
+                echo json_encode(['success' => false, 'message' => 'Method not allowed']);
+                exit;
+            }
+            
+            // Verify authentication
+            $currentUser = Auth::verify();
+            
+            $result = $controller->listUsers($currentUser['user_id']);
+            echo json_encode($result);
+            break;
+
         default:
             http_response_code(404);
             echo json_encode(['success' => false, 'message' => 'Action not found']);

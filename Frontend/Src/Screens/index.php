@@ -45,15 +45,17 @@
                     <p class="text-sm text-gray-500" id="channelInfo"></p>
                 </div>
                 
-
                 <div id="channelActions" class="hidden space-x-2">
-    <button onclick="showInviteModal()" class="px-3 py-1 bg-green-500 text-white rounded hover:bg-green-600">
-        📧 Invite User
-    </button>
-    <button onclick="deleteChannel()" class="px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600">
-        Delete Channel
-    </button>
-</div>
+                    <button onclick="showManageMembersModal()" class="px-3 py-1 bg-purple-500 text-white rounded hover:bg-purple-600">
+                        👥 Manage Members
+                    </button>
+                    <button onclick="showInviteModal()" class="px-3 py-1 bg-green-500 text-white rounded hover:bg-green-600">
+                        📧 Invite User
+                    </button>
+                    <button onclick="deleteChannel()" class="px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600">
+                        Delete Channel
+                    </button>
+                </div>
             </div>
 
             <!-- Messages -->

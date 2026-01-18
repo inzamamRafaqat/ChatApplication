@@ -252,6 +252,237 @@ async function showInviteModal() {
         alert('Failed to send invitation');
     }
 }
+   // Manage Members Modal Functions
+async function showManageMembersModal() {
+    if (!currentChannel) {
+        alert('Please select a channel first');
+        return;
+    }
+    
+    if (!currentChannel.is_private) {
+        alert('Member management is only for private channels');
+        return;
+    }
+    
+    if (currentChannel.created_by !== user.id) {
+        alert('Only channel creator can manage members');
+        return;
+    }
+    
+    // Create modal if it doesn't exist
+    let modal = document.getElementById('manageMembersModal');
+    if (!modal) {
+        modal = createManageMembersModal();
+        document.body.appendChild(modal);
+    }
+    
+    modal.classList.remove('hidden');
+    loadMembers();
+}
+
+function hideManageMembersModal() {
+    document.getElementById('manageMembersModal').classList.add('hidden');
+}
+
+function createManageMembersModal() {
+    const modal = document.createElement('div');
+    modal.id = 'manageMembersModal';
+    modal.className = 'hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
+    modal.innerHTML = `
+        <div class="bg-white p-6 rounded-lg w-[600px] max-h-[80vh] flex flex-col">
+            <h3 class="text-xl font-bold mb-4">Manage Members</h3>
+            
+            <!-- Add Member Section -->
+            <div class="mb-4 pb-4 border-b">
+                <h4 class="font-semibold mb-2">Add New Member</h4>
+                <div class="flex space-x-2">
+                    <input type="text" id="searchUserInput" placeholder="Search users by username or email..." 
+                           class="flex-1 px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <button onclick="searchUsersToAdd()" class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">
+                        Search
+                    </button>
+                </div>
+                <div id="searchResults" class="mt-2 max-h-40 overflow-y-auto"></div>
+            </div>
+            
+            <!-- Current Members List -->
+            <div class="flex-1 overflow-y-auto">
+                <h4 class="font-semibold mb-2">Current Members</h4>
+                <div id="membersList" class="space-y-2"></div>
+            </div>
+            
+            <button onclick="hideManageMembersModal()" 
+                    class="mt-4 w-full bg-gray-300 py-2 rounded hover:bg-gray-400">
+                Close
+            </button>
+        </div>
+    `;
+    return modal;
+}
+
+async function loadMembers() {
+    try {
+        const response = await fetch(`${API_URL}/channels.php?id=${currentChannel.id}&action=members`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await response.json();
+        
+        if (data.success) {
+            const membersList = document.getElementById('membersList');
+            if (data.members.length === 0) {
+                membersList.innerHTML = '<p class="text-gray-500 text-center py-4">No members yet</p>';
+                return;
+            }
+            
+            membersList.innerHTML = data.members.map(member => `
+                <div class="flex items-center justify-between p-3 bg-gray-50 rounded hover:bg-gray-100">
+                    <div class="flex items-center space-x-3">
+                        <img src="${member.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(member.username)}`}" 
+                             class="w-10 h-10 rounded-full">
+                        <div>
+                            <div class="font-medium">${member.username}</div>
+                            <div class="text-sm text-gray-500">${member.email}</div>
+                        </div>
+                    </div>
+                    ${member.id !== currentChannel.created_by ? `
+                        <button onclick="removeMember('${member.id}')" 
+                                class="px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600 text-sm">
+                            Remove
+                        </button>
+                    ` : `
+                        <span class="px-3 py-1 bg-yellow-100 text-yellow-800 rounded text-sm">Creator</span>
+                    `}
+                </div>
+            `).join('');
+        } else {
+            alert('Failed to load members: ' + data.message);
+        }
+    } catch (error) {
+        console.error('Error loading members:', error);
+        alert('Failed to load members');
+    }
+}
+
+async function searchUsersToAdd() {
+    const query = document.getElementById('searchUserInput').value.trim();
+    if (!query) {
+        alert('Please enter a search term');
+        return;
+    }
+    
+    try {
+        const response = await fetch(`${API_URL}/users.php?action=search&q=${encodeURIComponent(query)}`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await response.json();
+        
+        if (data.success) {
+            const searchResults = document.getElementById('searchResults');
+            
+            if (data.users.length === 0) {
+                searchResults.innerHTML = '<p class="text-gray-500 text-sm">No users found</p>';
+                return;
+            }
+            
+            // Filter out users already in channel
+            const currentMembers = await getCurrentMemberIds();
+            const availableUsers = data.users.filter(u => !currentMembers.includes(u.id));
+            
+            if (availableUsers.length === 0) {
+                searchResults.innerHTML = '<p class="text-gray-500 text-sm">All found users are already members</p>';
+                return;
+            }
+            
+            searchResults.innerHTML = availableUsers.map(u => `
+                <div class="flex items-center justify-between p-2 bg-white border rounded hover:bg-gray-50">
+                    <div class="flex items-center space-x-2">
+                        <img src="${u.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(u.username)}`}" 
+                             class="w-8 h-8 rounded-full">
+                        <div>
+                            <div class="font-medium text-sm">${u.username}</div>
+                            <div class="text-xs text-gray-500">${u.email}</div>
+                        </div>
+                    </div>
+                    <button onclick="addMemberToChannel('${u.id}')" 
+                            class="px-3 py-1 bg-green-500 text-white rounded hover:bg-green-600 text-sm">
+                        Add
+                    </button>
+                </div>
+            `).join('');
+        }
+    } catch (error) {
+        console.error('Error searching users:', error);
+        alert('Failed to search users');
+    }
+}
+
+async function getCurrentMemberIds() {
+    try {
+        const response = await fetch(`${API_URL}/channels.php?id=${currentChannel.id}&action=members`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await response.json();
+        return data.success ? data.members.map(m => m.id) : [];
+    } catch (error) {
+        return [];
+    }
+}
+
+async function addMemberToChannel(userId) {
+    if (!confirm('Add this user to the channel?')) return;
+    
+    try {
+        const response = await fetch(`${API_URL}/channels.php?id=${currentChannel.id}&action=add_member`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ user_id: userId })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            alert('✅ Member added successfully!');
+            document.getElementById('searchUserInput').value = '';
+            document.getElementById('searchResults').innerHTML = '';
+            loadMembers();
+        } else {
+            alert('❌ ' + data.message);
+        }
+    } catch (error) {
+        console.error('Error adding member:', error);
+        alert('Failed to add member');
+    }
+}
+
+async function removeMember(userId) {
+    if (!confirm('Remove this user from the channel?')) return;
+    
+    try {
+        const response = await fetch(`${API_URL}/channels.php?id=${currentChannel.id}&action=remove_member`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ user_id: userId })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            alert('✅ Member removed successfully!');
+            loadMembers();
+        } else {
+            alert('❌ ' + data.message);
+        }
+    } catch (error) {
+        console.error('Error removing member:', error);
+        alert('Failed to remove member');
+    }
+}
 
         // File upload handling
         function handleFileSelect(event) {

@@ -117,5 +117,34 @@ class User {
     public function getOnlineUsers() {
         return $this->db->find($this->collection, ['status' => 'online'], ['projection' => ['password' => 0]]);
     }
+   
+    public function searchUsers($query, $currentUserId) {
+        try {
+            // Create regex pattern for case-insensitive search
+            $regex = new MongoDB\BSON\Regex($query, 'i');
+            
+            // Search by username or email, exclude current user
+            $filter = [
+                '$or' => [
+                    ['username' => $regex],
+                    ['email' => $regex]
+                ],
+                '_id' => ['$ne' => new MongoDB\BSON\ObjectId($currentUserId)]
+            ];
+
+            $options = [
+                'limit' => 20,
+                'sort' => ['username' => 1],
+                'projection' => ['password' => 0] // Exclude password field
+            ];
+
+            // Use your Database wrapper's find method
+            return $this->db->find($this->collection, $filter, $options);
+        } catch (Exception $e) {
+            throw new Exception("Failed to search users: " . $e->getMessage());
+        }
+    }
+   
+    
 }
 ?>

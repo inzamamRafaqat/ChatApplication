@@ -26,7 +26,7 @@ $userId = isset($_SESSION['user_id']) ? $_SESSION['user_id'] : null;
 if (!$userId) {
     // Store token in session
     $_SESSION['pending_invitation_token'] = $token;
-    header("Location: /ChatApplication/Frontend/Screens/login.php?redirect=accept_invitation");
+    header("Location: /ChatApplication/Frontend/Src/Screens/login.php?redirect=accept_invitation");
     exit;
 }
 
