@@ -87,138 +87,173 @@
             }
         }
 
-        // Load messages
-        async function loadMessages(channelId) {
-            try {
-                const response = await fetch(`${API_URL}/messages.php?channel_id=${channelId}`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-                const data = await response.json();
+  // Updated loadMessages function to handle GridFS URLs
+async function loadMessages(channelId) {
+    try {
+        const response = await fetch(`${API_URL}/messages.php?channel_id=${channelId}`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await response.json();
+        
+        if (data.success) {
+            const messagesArea = document.getElementById('messagesArea');
+            messagesArea.innerHTML = data.messages.map(msg => {
+                const hasFile = msg.file_url && msg.file_url !== 'null' && msg.file_url !== '';
                 
-                if (data.success) {
-                    const messagesArea = document.getElementById('messagesArea');
-                    messagesArea.innerHTML = data.messages.map(msg => {
-                        const hasFile = msg.file_url && msg.file_url !== 'null';
-                        const fileExt = hasFile ? msg.file_url.split('.').pop().toLowerCase() : '';
-                        const isImage = hasFile && ['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(fileExt);
-                        const isDocument = hasFile && ['pdf', 'doc', 'docx', 'txt', 'xls', 'xlsx'].includes(fileExt);
-                        
-                        let fileContent = '';
-                        if (hasFile) {
-                            if (isImage) {
-                                // Show image preview
-                                fileContent = `
-                                    <div class="mb-2 rounded overflow-hidden">
-                                        <a href="${msg.file_url}" target="_blank">
-                                            <img src="${msg.file_url}" alt="Image" 
-                                                 class="max-w-full max-h-64 rounded cursor-pointer hover:opacity-90"
-                                                 onclick="openImageViewer('${msg.file_url}'); event.preventDefault();">
-                                        </a>
-                                    </div>
-                                `;
-                            } else if (isDocument) {
-                                // Show document download button
-                                const fileName = msg.file_url.split('/').pop();
-                                const fileIcon = fileExt === 'pdf' ? '📄' : fileExt === 'doc' || fileExt === 'docx' ? '📝' : '📎';
-                                fileContent = `
-                                    <a href="${msg.file_url}" download class="block mb-2 p-3 bg-white bg-opacity-20 rounded hover:bg-opacity-30 transition">
-                                        <div class="flex items-center space-x-2">
-                                            <span class="text-2xl">${fileIcon}</span>
-                                            <div class="flex-1 min-w-0">
-                                                <div class="text-sm font-medium truncate">${fileName}</div>
-                                                <div class="text-xs opacity-75">.${fileExt.toUpperCase()} • Click to download</div>
-                                            </div>
-                                            <span class="text-lg">⬇️</span>
-                                        </div>
-                                    </a>
-                                `;
-                            }
-                        }
-                        
-                        return `
-                            <div class="flex ${msg.user_id === user.id ? 'justify-end' : 'justify-start'}">
-                                <div class="max-w-md ${msg.user_id === user.id ? 'bg-blue-500 text-white' : 'bg-white'} rounded-lg p-3 shadow">
-                                    <div class="font-semibold text-sm mb-1 ${msg.user_id === user.id ? 'text-blue-100' : 'text-gray-700'}">${msg.username}</div>
-                                    ${fileContent}
-                                    ${msg.content && msg.content !== '📎 File attached' ? `<div class="break-words">${escapeHtml(msg.content)}</div>` : ''}
-                                    <div class="text-xs opacity-75 mt-1 text-right">${new Date(msg.created_at).toLocaleTimeString()}</div>
-                                </div>
+                // For GridFS files, the URL will be like: /ChatApplication/Backend/api/file.php?id=...
+                // Extract file type from the URL or message metadata
+                let fileExt = '';
+                let isImage = false;
+                let isDocument = false;
+                
+                if (hasFile) {
+                    // Use file_type from message metadata if available
+                    if (msg.file_type) {
+                        isImage = msg.file_type === 'image';
+                        isDocument = msg.file_type === 'document';
+                    } else {
+                        // Fallback to extension-based detection
+                        fileExt = msg.file_url.split('.').pop().toLowerCase();
+                        isImage = ['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(fileExt);
+                        isDocument = ['pdf', 'doc', 'docx', 'txt', 'xls', 'xlsx'].includes(fileExt);
+                    }
+                    
+                    // Get filename from metadata or URL
+                    const displayFileName = msg.file_name || msg.file_url.split('/').pop();
+                }
+                
+                let fileContent = '';
+                if (hasFile) {
+                    // Make the file URL absolute
+                    const fullFileUrl = msg.file_url.startsWith('http') 
+                        ? msg.file_url 
+                        : `http://localhost${msg.file_url}`;
+                    
+                    if (isImage) {
+                        // Show image preview
+                        fileContent = `
+                            <div class="mb-2 rounded overflow-hidden">
+                                <a href="${fullFileUrl}" target="_blank">
+                                    <img src="${fullFileUrl}" alt="Image" 
+                                         class="max-w-full max-h-64 rounded cursor-pointer hover:opacity-90"
+                                         onerror="this.onerror=null; this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%22200%22 height=%22200%22><text x=%2250%25%22 y=%2250%25%22 text-anchor=%22middle%22>Image Error</text></svg>';"
+                                         onclick="openImageViewer('${fullFileUrl}'); event.preventDefault();">
+                                </a>
                             </div>
                         `;
-                    }).join('');
-                    
-                    messagesArea.scrollTop = messagesArea.scrollHeight;
-                }
-            } catch (error) {
-                console.error('Error loading messages:', error);
-            }
-        }
-
-        // Send message
-        document.getElementById('messageForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            
-            if (!currentChannel) {
-                alert('Please select a channel first');
-                return;
-            }
-            
-            const content = document.getElementById('messageInput').value.trim();
-            
-            if (!content && !selectedFile) {
-                return;
-            }
-            
-            try {
-                let fileUrl = null;
-                
-                // Upload file if selected
-                if (selectedFile) {
-                    const formData = new FormData();
-                    formData.append('file', selectedFile);
-                    
-                    const uploadResponse = await fetch(`${API_URL}/upload.php`, {
-                        method: 'POST',
-                        headers: {
-                            'Authorization': `Bearer ${token}`
-                        },
-                        body: formData
-                    });
-                    
-                    const uploadData = await uploadResponse.json();
-                    if (uploadData.success) {
-                        fileUrl = uploadData.file_url;
+                    } else if (isDocument || !isImage) {
+                        // Show document download button
+                        const displayFileName = msg.file_name || msg.file_url.split('/').pop();
+                        const fileIcon = fileExt === 'pdf' ? '📄' : fileExt === 'doc' || fileExt === 'docx' ? '📝' : '📎';
+                        fileContent = `
+                            <a href="${fullFileUrl}" download class="block mb-2 p-3 bg-white bg-opacity-20 rounded hover:bg-opacity-30 transition">
+                                <div class="flex items-center space-x-2">
+                                    <span class="text-2xl">${fileIcon}</span>
+                                    <div class="flex-1 min-w-0">
+                                        <div class="text-sm font-medium truncate">${displayFileName}</div>
+                                        <div class="text-xs opacity-75">${fileExt ? '.' + fileExt.toUpperCase() + ' • ' : ''}Click to download</div>
+                                    </div>
+                                    <span class="text-lg">⬇️</span>
+                                </div>
+                            </a>
+                        `;
                     }
                 }
                 
-                // Send message
-                const response = await fetch(`${API_URL}/messages.php`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
-                    },
-                    body: JSON.stringify({
-                        channel_id: currentChannel.id,
-                        content: content || '📎 File attached',
-                        file_url: fileUrl
-                    })
-                });
-                
-                const data = await response.json();
-                
-                if (data.success) {
-                    document.getElementById('messageInput').value = '';
-                    clearFileUpload();
-                    loadMessages(currentChannel.id);
-                } else {
-                    alert('Failed to send message: ' + data.message);
-                }
-            } catch (error) {
-                console.error('Error sending message:', error);
-                alert('Error sending message');
+                return `
+                    <div class="flex ${msg.user_id === user.id ? 'justify-end' : 'justify-start'}">
+                        <div class="max-w-md ${msg.user_id === user.id ? 'bg-blue-500 text-white' : 'bg-white'} rounded-lg p-3 shadow">
+                            <div class="font-semibold text-sm mb-1 ${msg.user_id === user.id ? 'text-blue-100' : 'text-gray-700'}">${msg.username}</div>
+                            ${fileContent}
+                            ${msg.content && msg.content !== '📎 File attached' ? `<div class="break-words">${escapeHtml(msg.content)}</div>` : ''}
+                            <div class="text-xs opacity-75 mt-1 text-right">${new Date(msg.created_at).toLocaleTimeString()}</div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+            
+            messagesArea.scrollTop = messagesArea.scrollHeight;
+        }
+    } catch (error) {
+        console.error('Error loading messages:', error);
+    }
+}
+// Updated message sending with file metadata
+document.getElementById('messageForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    if (!currentChannel) {
+        alert('Please select a channel first');
+        return;
+    }
+    
+    const content = document.getElementById('messageInput').value.trim();
+    
+    if (!content && !selectedFile) {
+        return;
+    }
+    
+    try {
+        let fileUrl = null;
+        let fileType = null;
+        let fileName = null;
+        
+        // Upload file if selected
+        if (selectedFile) {
+            const formData = new FormData();
+            formData.append('file', selectedFile);
+            
+            const uploadResponse = await fetch(`${API_URL}/upload.php`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                },
+                body: formData
+            });
+            
+            const uploadData = await uploadResponse.json();
+            console.log('Upload response:', uploadData); // Debug log
+            
+            if (uploadData.success) {
+                fileUrl = uploadData.file_url;
+                fileType = uploadData.file_type; // image or document
+                fileName = uploadData.original_name;
+            } else {
+                alert('File upload failed: ' + uploadData.message);
+                return;
             }
+        }
+        
+        // Send message with file metadata
+        const response = await fetch(`${API_URL}/messages.php`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({
+                channel_id: currentChannel.id,
+                content: content || '📎 File attached',
+                file_url: fileUrl,
+                file_type: fileType,    // Include file type
+                file_name: fileName     // Include file name
+            })
         });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            document.getElementById('messageInput').value = '';
+            clearFileUpload();
+            loadMessages(currentChannel.id);
+        } else {
+            alert('Failed to send message: ' + data.message);
+        }
+    } catch (error) {
+        console.error('Error sending message:', error);
+        alert('Error sending message');
+    }
+});
         // Add after the loadChannels function
 
 async function showInviteModal() {
