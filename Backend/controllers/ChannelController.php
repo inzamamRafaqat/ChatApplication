@@ -159,5 +159,49 @@ class ChannelController {
             ? ['success' => true, 'message' => 'Member removed']
             : ['success' => false, 'message' => 'Failed to remove member'];
     }
+   
+public function getMembers($channelId, $userId) {
+    require_once __DIR__ . '/../config/database.php';
+    
+    $channel = $this->channelModel->findById($channelId);
+    
+    if (!$channel) {
+        return ['success' => false, 'message' => 'Channel not found'];
+    }
+    
+    // Check if user has access
+    if (!$this->channelModel->hasAccess($channelId, $userId)) {
+        return ['success' => false, 'message' => 'Access denied'];
+    }
+    
+    // Get member IDs from channel
+    $memberIds = $channel->members ?? [];
+    
+    // Fetch user details directly from database
+    $db = new Database();
+    $members = [];
+    
+    foreach ($memberIds as $memberId) {
+        try {
+            $user = $db->findOne('users', ['_id' => new MongoDB\BSON\ObjectId($memberId)]);
+            if ($user) {
+                $members[] = [
+                    'id' => $memberId,
+                    'username' => $user->username ?? 'Unknown',
+                    'email' => $user->email ?? '',
+                    'avatar' => $user->avatar ?? null
+                ];
+            }
+        } catch (Exception $e) {
+            // Skip invalid user IDs
+            continue;
+        }
+    }
+    
+    return [
+        'success' => true,
+        'members' => $members
+    ];
+}
 }
 ?>

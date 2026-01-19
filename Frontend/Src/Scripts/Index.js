@@ -334,22 +334,37 @@ function createManageMembersModal() {
     `;
     return modal;
 }
-
 async function loadMembers() {
     try {
         const response = await fetch(`${API_URL}/channels.php?id=${currentChannel.id}&action=members`, {
             headers: { 'Authorization': `Bearer ${token}` }
         });
-        const data = await response.json();
         
-        if (data.success) {
-            const membersList = document.getElementById('membersList');
-            if (data.members.length === 0) {
+        // Check if response is OK
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        // Get raw text first to debug
+        const text = await response.text();
+        console.log('Members API Raw response:', text);
+        
+        // Try to parse JSON
+        const data = JSON.parse(text);
+        
+        const membersList = document.getElementById('membersList');
+        
+        // Handle different response structures
+        // Check if members are in data.members OR data.channel.members
+        const members = data.members || (data.channel && data.channel.members) || [];
+        
+        if (data.success && Array.isArray(members)) {
+            if (members.length === 0) {
                 membersList.innerHTML = '<p class="text-gray-500 text-center py-4">No members yet</p>';
                 return;
             }
             
-            membersList.innerHTML = data.members.map(member => `
+            membersList.innerHTML = members.map(member => `
                 <div class="flex items-center justify-between p-3 bg-gray-50 rounded hover:bg-gray-100">
                     <div class="flex items-center space-x-3">
                         <img src="${member.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(member.username)}`}" 
@@ -370,11 +385,18 @@ async function loadMembers() {
                 </div>
             `).join('');
         } else {
-            alert('Failed to load members: ' + data.message);
+            // Handle error or unexpected response
+            console.error('API Error:', data);
+            membersList.innerHTML = '<p class="text-red-500 text-center py-4">Failed to load members. Check console for details.</p>';
+            alert('Error loading members: ' + (data.message || 'Unknown error'));
         }
     } catch (error) {
         console.error('Error loading members:', error);
-        alert('Failed to load members');
+        const membersList = document.getElementById('membersList');
+        if (membersList) {
+            membersList.innerHTML = '<p class="text-red-500 text-center py-4">Failed to load members</p>';
+        }
+        alert('Failed to load members. Check console for details.');
     }
 }
 

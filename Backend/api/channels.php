@@ -38,7 +38,10 @@ try {
             break;
 
         case 'GET':
-            if ($id) {
+            // Handle action=members
+            if ($action === 'members' && $id) {
+                $result = $controller->getMembers($id, $userId);
+            } elseif ($id) {
                 $result = $controller->getOne($id, $userId);
             } else {
                 $result = $controller->getAll($userId);
