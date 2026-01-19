@@ -145,18 +145,20 @@ class User {
             throw new Exception("Failed to search users: " . $e->getMessage());
         }
     }
-   public function updatePassword($userId, $hashedPassword) {
-    try {
-        $result = $this->collection->updateOne(
-            ['_id' => new MongoDB\BSON\ObjectId($userId)],
-            ['$set' => ['password' => $hashedPassword]]
-        );
-        
-        return $result->getModifiedCount() > 0;
-    } catch (Exception $e) {
-        return false;
+   
+    // Update password - FIXED VERSION
+    public function updatePassword($userId, $hashedPassword) {
+        try {
+            $objectId = new MongoDB\BSON\ObjectId($userId);
+            $result = $this->db->update($this->collection, ['_id' => $objectId], [
+                'password' => $hashedPassword
+            ]);
+            
+            return $result;
+        } catch (Exception $e) {
+            return false;
+        }
     }
-}
     
 }
 ?>

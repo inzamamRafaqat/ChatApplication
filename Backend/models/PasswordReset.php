@@ -4,12 +4,10 @@ require_once __DIR__ . '/../config/database.php';
 
 class PasswordReset {
     private $db;
-    private $collection;
+    private $collection = 'password_resets';
     
     public function __construct() {
-        $database = new Database();
-        $this->db = $database->getDatabase();
-        $this->collection = $this->db->password_resets;
+        $this->db = new Database();
     }
     
     // Create password reset token
@@ -24,23 +22,23 @@ class PasswordReset {
         $hashedPassword = password_hash($tempPassword, PASSWORD_BCRYPT);
         
         // Delete any existing reset tokens for this email
-        $this->collection->deleteMany(['email' => $email]);
+        $this->db->delete($this->collection, ['email' => $email]);
         
         // Create reset record
         $resetData = [
             'email' => $email,
             'user_id' => $userId,
             'token' => $token,
-            'temp_password' => $tempPassword, // Store plain text to send in email
+            'temp_password' => $tempPassword,
             'hashed_password' => $hashedPassword,
             'created_at' => new MongoDB\BSON\UTCDateTime(),
             'expires_at' => new MongoDB\BSON\UTCDateTime(strtotime('+1 hour') * 1000),
             'used' => false
         ];
         
-        $result = $this->collection->insertOne($resetData);
+        $result = $this->db->insert($this->collection, $resetData);
         
-        if ($result->getInsertedCount() > 0) {
+        if ($result) {
             return [
                 'success' => true,
                 'token' => $token,
@@ -53,7 +51,7 @@ class PasswordReset {
     
     // Verify and use reset token
     public function verifyToken($token) {
-        $reset = $this->collection->findOne([
+        $reset = $this->db->findOne($this->collection, [
             'token' => $token,
             'used' => false,
             'expires_at' => ['$gt' => new MongoDB\BSON\UTCDateTime()]
@@ -64,9 +62,9 @@ class PasswordReset {
         }
         
         // Mark as used
-        $this->collection->updateOne(
+        $this->db->update($this->collection, 
             ['_id' => $reset->_id],
-            ['$set' => ['used' => true]]
+            ['used' => true]
         );
         
         return [
@@ -89,9 +87,9 @@ class PasswordReset {
         return $password;
     }
     
-    // Clean up expired tokens (optional - can run as cron job)
+    // Clean up expired tokens
     public function cleanupExpired() {
-        $this->collection->deleteMany([
+        $this->db->delete($this->collection, [
             'expires_at' => ['$lt' => new MongoDB\BSON\UTCDateTime()]
         ]);
     }
