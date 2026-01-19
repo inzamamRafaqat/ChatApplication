@@ -1,4 +1,5 @@
 <?php
+
 // Simple JWT implementation (no external libraries)
 class JWT {
     private static $secret = "your_super_secret_key_12345_change_this"; // Change this!

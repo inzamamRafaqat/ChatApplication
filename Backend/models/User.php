@@ -1,4 +1,5 @@
 <?php
+
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../utils/Bcrypt.php';
 
@@ -144,7 +145,18 @@ class User {
             throw new Exception("Failed to search users: " . $e->getMessage());
         }
     }
-   
+   public function updatePassword($userId, $hashedPassword) {
+    try {
+        $result = $this->collection->updateOne(
+            ['_id' => new MongoDB\BSON\ObjectId($userId)],
+            ['$set' => ['password' => $hashedPassword]]
+        );
+        
+        return $result->getModifiedCount() > 0;
+    } catch (Exception $e) {
+        return false;
+    }
+}
     
 }
 ?>

@@ -1,6 +1,9 @@
 <?php
+
 require_once __DIR__ . '/../models/User.php';
 require_once __DIR__ . '/../utils/JWT.php';
+
+
 
 class AuthController {
     private $userModel;

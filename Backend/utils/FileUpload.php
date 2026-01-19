@@ -1,4 +1,5 @@
 <?php
+
 class FileUpload {
     private $uploadDir = __DIR__ . '/../public/uploads/';
     private $allowedImages = ['jpg', 'jpeg', 'png', 'gif', 'webp'];

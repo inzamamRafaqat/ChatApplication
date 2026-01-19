@@ -1,4 +1,5 @@
 <?php
+namespace Backend;
 require_once 'utils/Email.php';
 
 $email = new Email();

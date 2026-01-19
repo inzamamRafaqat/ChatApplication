@@ -1,5 +1,6 @@
 <?php
 // Database configuration
+
 class Database {
     private $connection;
     private $db;

@@ -23,26 +23,41 @@
         }
 
         // Load channels
-        async function loadChannels() {
-            try {
-                const response = await fetch(`${API_URL}/channels.php`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-                const data = await response.json();
-                
-                if (data.success) {
-                    const channelList = document.getElementById('channelList');
-                    channelList.innerHTML = data.channels.map(channel => `
-                        <div onclick="selectChannel('${channel.id}')" 
-                             class="p-2 rounded hover:bg-gray-100 cursor-pointer ${currentChannel?.id === channel.id ? 'bg-blue-100' : ''}">
-                            <div class="font-semibold">${channel.is_private ? '🔒' : '#'} ${channel.name}</div>
-                        </div>
-                    `).join('');
-                }
-            } catch (error) {
-                console.error('Error loading channels:', error);
-            }
+       async function loadChannels() {
+    try {
+        const response = await fetch(`${API_URL}/channels.php`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        
+        // Check if response is OK
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
         }
+        
+        // Get raw text first to debug
+        const text = await response.text();
+        console.log('Raw response:', text); // Debug log
+        
+        // Try to parse JSON
+        const data = JSON.parse(text);
+        
+        if (data.success) {
+            const channelList = document.getElementById('channelList');
+            channelList.innerHTML = data.channels.map(channel => `
+                <div onclick="selectChannel('${channel.id}')" 
+                     class="p-2 rounded hover:bg-gray-100 cursor-pointer ${currentChannel?.id === channel.id ? 'bg-blue-100' : ''}">
+                    <div class="font-semibold">${channel.is_private ? '🔒' : '#'} ${channel.name}</div>
+                </div>
+            `).join('');
+        } else {
+            console.error('API Error:', data.message);
+            alert('Error: ' + data.message);
+        }
+    } catch (error) {
+        console.error('Error loading channels:', error);
+        alert('Failed to load channels. Check console for details.');
+    }
+}
 
         // Select channel
         async function selectChannel(channelId) {
